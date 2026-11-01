@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>校园通勤提醒 · 登录</title>
+  <link rel="stylesheet" href="assets/css/style.css?v=20261101e" />
+</head>
+<body>
+  <main class="auth-page">
+    <div class="auth-brand">
+      <div class="logo">🚌</div>
+      <h1>校园通勤提醒</h1>
+      <p>登录后，你的课表与设置安全保存在云端，换设备也不丢</p>
+    </div>
+
+    <div class="auth-card">
+      <!-- 视图切换标签 -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-view="login">登录</button>
+        <button type="button" class="auth-tab" data-view="register">注册</button>
+      </div>
+
+      <!-- 登录视图 -->
+      <form class="view active" id="view-login" novalidate>
+        <div class="auth-field">
+          <label for="loginEmail">邮箱</label>
+          <input class="auth-input" id="loginEmail" type="email" autocomplete="email" placeholder="请输入邮箱" />
+        </div>
+        <div class="auth-field">
+          <label for="loginPassword">密码</label>
+          <input class="auth-input" id="loginPassword" type="password" autocomplete="current-password" placeholder="请输入密码" />
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="loginSubmit">登录</button>
+        <div class="auth-alt">
+          <a id="toForgot">忘记密码？</a>
+        </div>
+        <p class="auth-msg" id="loginMsg"></p>
+      </form>
+
+      <!-- 注册视图 -->
+      <form class="view" id="view-register" novalidate>
+        <div class="auth-field">
+          <label for="regEmail">邮箱</label>
+          <input class="auth-input" id="regEmail" type="email" autocomplete="email" placeholder="请输入邮箱" />
+        </div>
+        <div class="auth-field">
+          <label for="regPassword">密码（至少 6 位）</label>
+          <input class="auth-input" id="regPassword" type="password" autocomplete="new-password" placeholder="请设置密码" />
+        </div>
+        <div class="auth-field">
+          <label for="regConfirm">确认密码</label>
+          <input class="auth-input" id="regConfirm" type="password" autocomplete="new-password" placeholder="请再次输入密码" />
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="regSubmit">注册</button>
+        <p class="auth-msg" id="regMsg"></p>
+      </form>
+
+      <!-- 忘记密码视图 -->
+      <form class="view" id="view-forgot" novalidate>
+        <div class="auth-field">
+          <label for="forgotEmail">邮箱</label>
+          <input class="auth-input" id="forgotEmail" type="email" autocomplete="email" placeholder="请输入注册邮箱" />
+        </div>
+        <button type="submit" class="btn btn-primary auth-submit" id="forgotSubmit">发送重置邮件</button>
+        <div class="auth-back"><a id="backToLogin">← 返回登录</a></div>
+        <p class="auth-msg" id="forgotMsg"></p>
+      </form>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2?v=20261101e"></script>
+  <script src="assets/js/config.local.js?v=20261101e"></script>
+  <script src="assets/js/config.js?v=20261101e"></script>
+  <script src="assets/js/supabase.js?v=20261101e"></script>
+  <script src="assets/js/auth.js?v=20261101e"></script>
+</body>
+</html>

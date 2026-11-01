@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>校园通勤提醒 · API 测试台</title>
+  <link rel="stylesheet" href="assets/css/style.css?v=20261101e" />
+  <style>
+    /* 仅测试台使用的小样式，不影响主应用 */
+    .api-out {
+      margin: 12px 0 0; padding: 12px;
+      background: #f6f8f7; border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 12.5px; line-height: 1.6;
+      white-space: pre-wrap; word-break: break-all;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: var(--text);
+      min-height: 20px;
+    }
+    .api-out.err { border-color: #e0b4b4; background: #fdf3f3; color: #a33; }
+    .api-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .api-actions .btn { flex: 1; justify-content: center; }
+    .status-line { font-size: 13px; margin: 4px 0; }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🧪</span>
+      <span>校园通勤提醒 · API 测试台</span>
+    </div>
+    <div class="actions">
+      <a class="btn btn-ghost" href="index.html" style="text-decoration:none">← 返回应用</a>
+    </div>
+  </header>
+
+  <main class="setup-page">
+    <div class="intro">
+      <h1>外部 API 联调台 🧪</h1>
+      <p>用假坐标跑通「高德通勤耗时」与「和风天气」两个函数；填入真实 Key 后自动切换为真实数据。</p>
+    </div>
+
+    <!-- 当前模式 -->
+    <section class="card-block">
+      <h2>📡 当前 API 模式</h2>
+      <p class="status-line">高德地图：<strong id="stAmap">—</strong></p>
+      <p class="status-line">和风天气：<strong id="stQw">—</strong></p>
+      <div class="tip">未填 Key 时显示 mock（返回稳定的模拟数据）；在 <code>assets/js/config.js</code> 填入 Key 后刷新本页即为真实 API。</div>
+    </section>
+
+    <!-- 通勤时间测试 -->
+    <section class="card-block">
+      <h2>🚶 getCommuteTime(origin, destination, mode)</h2>
+      <div class="field">
+        <label>出发地（坐标 或 地名）</label>
+        <input type="text" id="tOrigin" value="116.481028,39.989039" />
+      </div>
+      <div class="field">
+        <label>目的地（坐标 或 地名）</label>
+        <input type="text" id="tDest" value="116.434446,39.981810" />
+      </div>
+      <div class="field">
+        <label>交通方式</label>
+        <select id="tMode">
+          <option value="walk" selected>步行</option>
+          <option value="bike">骑行</option>
+          <option value="drive">驾车</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>换成地名试试（高德地理编码 + 路径规划）</label>
+        <input type="text" id="tOriginAddr" value="清华大学" placeholder="例如：清华大学" />
+        <input type="text" id="tDestAddr" value="北京大学" placeholder="例如：北京大学" style="margin-top:8px" />
+      </div>
+      <div class="api-actions">
+        <button class="btn btn-primary" id="btnCommute">⏱ 计算通勤时间</button>
+        <button class="btn" id="btnCommuteAddr">📍 用地名计算</button>
+      </div>
+      <pre class="api-out" id="outCommute">点击上方按钮，结果会显示在这里（同时打印到浏览器控制台）</pre>
+    </section>
+
+    <!-- 天气测试 -->
+    <section class="card-block">
+      <h2>🌂 checkWeather(location)</h2>
+      <div class="field">
+        <label>地点（「经度,纬度」 或 地名）</label>
+        <input type="text" id="tLoc" value="116.481028,39.989039" />
+      </div>
+      <div class="field">
+        <label>未来几小时窗口</label>
+        <input type="number" id="tHours" value="6" min="1" max="24" />
+      </div>
+      <div class="api-actions">
+        <button class="btn btn-primary" id="btnWeather">🌤 查询是否下雨</button>
+        <button class="btn" id="btnSummary">🧭 合并查询（耗时+天气）</button>
+      </div>
+      <pre class="api-out" id="outWeather">点击上方按钮，结果会显示在这里（同时打印到浏览器控制台）</pre>
+    </section>
+
+    <!-- Key 申请指引 -->
+    <section class="card-block">
+      <h2>🔑 Key 申请与配置</h2>
+      <p class="status-line"><strong>高德地图</strong>：lbs.amap.com → 控制台 → 应用管理 → 创建应用 → 添加 Key（服务平台选「Web服务」）</p>
+      <p class="status-line"><strong>和风天气</strong>：qweather.com → 注册 → 控制台 → 项目管理 → 创建应用（选「Web API / 免费开发版」）</p>
+      <div class="tip">拿到 Key 后填入 <code>assets/js/config.js</code> 的 <code>window.AMAP_CONFIG.key</code> 与 <code>window.QWEATHER_CONFIG.key</code>，刷新本页即可联调；两个 Key 均已实测支持浏览器跨域直连。</div>
+    </section>
+  </main>
+
+  <script src="assets/js/config.local.js?v=20261101e"></script>
+  <script src="assets/js/config.js?v=20261101e"></script>
+  <script src="assets/js/apis.js?v=20261101e"></script>
+  <script src="assets/js/api-test.js?v=20261101e"></script>
+</body>
+</html>

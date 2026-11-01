@@ -1,0 +1,12 @@
+{
+  "name": "校园通勤提醒",
+  "short_name": "通勤提醒",
+  "description": "校园通勤智能提醒助手",
+  "start_url": "index.html",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#4f9d77",
+  "icons": []
+}

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>校园通勤提醒 · 智能助手</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="assets/css/style.css?v=20261101e" />
+</head>
+<body class="app-shell">
+
+  <!-- ============ 顶栏 ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🚌</span>
+      <span class="brand-title">校园通勤提醒</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" id="logoutBtn" title="清空本机数据并重新配置">重置</button>
+      <button class="btn icon-btn" id="openSettingsBtn" title="设置修改" aria-label="设置">⚙️</button>
+      <button class="btn btn-primary" id="addDesktopBtn" title="添加到桌面">＋ 添加到桌面</button>
+
+      <!-- 添加到桌面 · 手动指引气泡 -->
+      <div class="popover" id="addDesktopPopover">
+        <span class="close" data-close-popover>✕</span>
+        <h4>添加到桌面</h4>
+        <div id="popoverHintNative" style="display:none">
+          点击下方按钮即可安装到桌面/主屏幕。
+        </div>
+        <div id="popoverHintManual">
+          <p style="margin:0 0 6px">当前浏览器需手动添加：</p>
+          <ol>
+            <li>iOS：点击底部「分享」→「添加到主屏幕」</li>
+            <li>Android/Chrome：右上角「⋮」→「安装应用」</li>
+            <li>桌面版：地址栏右侧「安装」图标</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ 聊天首页 ============ -->
+  <main class="chat-page">
+    <div class="chat-scroll" id="chatScroll">
+      <div class="messages" id="messageList">
+        <!-- 消息 & 通勤卡片由 chat.js 注入 -->
+      </div>
+    </div>
+
+    <!-- 输入区 -->
+    <div class="composer">
+      <div class="composer-inner">
+        <textarea id="chatInput" rows="1" placeholder="问问今天怎么安排通勤…"></textarea>
+        <button class="btn btn-primary send" id="sendBtn">发送</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============ 通勤卡片模板（数据展示位） ============ -->
+  <template id="commuteCardTpl">
+    <div class="msg agent">
+      <div class="avatar">🤖</div>
+      <div class="bubble">
+        <div class="commute-card">
+          <div class="cc-head">
+            <span class="cc-title">📍 今日通勤提醒</span>
+            <span class="cc-badge">提前到课</span>
+          </div>
+          <div class="commute-row"><span class="label">课程名</span><span class="value" id="commute-course">—</span></div>
+          <div class="commute-row"><span class="label">开始时间</span><span class="value" id="commute-start">—</span></div>
+          <div class="commute-row"><span class="label">教室位置</span><span class="value" id="commute-room">—</span></div>
+          <div class="commute-row"><span class="label">路上耗时</span><span class="value" id="commute-travel">—</span></div>
+          <div class="commute-row"><span class="label">天气提醒</span><span class="value warn" id="commute-weather">—</span></div>
+        </div>
+        <button class="btn btn-primary depart-btn" id="departNowBtn" type="button">🚶 现在出发</button>
+        <span class="time">08:30</span>
+      </div>
+    </div>
+  </template>
+
+  <!-- ============ 设置修改 弹窗 ============ -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="设置修改">
+      <div class="modal-head">
+        <h3>⚙️ 设置修改</h3>
+        <button class="btn btn-ghost icon-btn" id="closeSettingsBtn" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>课表更改（上传新图片）</label>
+          <div class="upload-zone" id="settingsUploadZone">
+            <div class="up-icon">🖼️</div>
+            <div class="up-main">点击或拖拽新课表图片到此处</div>
+            <div class="up-sub">支持 JPG / PNG（AI 自动识别，无需手填）</div>
+            <div class="file-name" id="settingsUploadFileName"></div>
+            <input type="file" id="settingsScheduleFile" accept="image/*" hidden />
+          </div>
+          <div class="hint">上传后将重新解析你的上课时间与教室位置</div>
+        </div>
+
+        <div class="field">
+          <label>查看 / 编辑当前课表</label>
+          <button class="btn" id="openSchedulePreviewBtn" type="button">📋 课表预览（可增删改）</button>
+          <div class="hint">点开查看正在使用的课表，可直接改课程名 / 教室 / 时间 / 周次，也能增删行，改动即时保存。</div>
+        </div>
+
+        <div class="field">
+          <label>学校名称（有校区请一起写上）</label>
+          <input type="text" id="set-school" placeholder="例如：北京大学，或 北京大学昌平校区" />
+          <div class="hint">智能体会用「学校 + 教学楼」向高德地图定位，带上校区结果更准</div>
+        </div>
+        <div class="field">
+          <label>学期第一周的周一日期</label>
+          <input type="date" id="set-semester" />
+          <div class="hint">按此计算现在是第几周，判断课程这周上不上（单双周 / 起止周次）</div>
+        </div>
+        <div class="field">
+          <label>默认出发地（宿舍 / 家）</label>
+          <input type="text" id="set-depart" value="梅园 3 栋 518" />
+        </div>
+        <div class="field">
+          <label>通勤方式</label>
+          <select id="set-mode">
+            <option selected>步行</option>
+            <option>骑行</option>
+            <option>校内公交</option>
+          </select>
+        </div>
+        <div class="switch-row">
+          <div class="desc">
+            <span>天气提醒</span>
+            <small>出发前推送天气建议</small>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="set-weather" checked />
+            <span class="slider"></span>
+          </label>
+        </div>
+        <!-- 数据备份（本地） -->
+        <div class="field backup-block">
+          <label>数据备份（本地）</label>
+          <div class="backup-actions">
+            <button class="btn" id="exportBackupBtn" type="button">⬇️ 导出备份</button>
+            <button class="btn" id="importBackupBtn" type="button">⬆️ 导入备份</button>
+            <input type="file" id="importBackupFile" accept="application/json,.json" hidden />
+          </div>
+          <div class="hint">导出会把「课表 + 设置」存成一份 JSON 文件；换设备或清缓存后，用「导入备份」一键恢复。</div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="cancelSettingsBtn">取消</button>
+        <button class="btn btn-primary" id="saveSettingsBtn">保存修改</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 课表预览 / 编辑 弹窗 ============ -->
+  <div class="modal-overlay" id="schedulePreviewModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="课表预览与编辑">
+      <div class="modal-head">
+        <h3>📋 课表预览</h3>
+        <button class="btn btn-ghost icon-btn" id="closePreviewBtn" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body" id="schedulePreviewBody">
+        <!-- 课表可编辑表格由 chat.js 注入 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 重置本地数据 确认弹窗 ============ -->
+  <div class="modal-overlay" id="resetConfirmModal">
+    <div class="modal modal-sm" role="dialog" aria-modal="true" aria-label="重置确认">
+      <div class="modal-head">
+        <h3>重置本地数据</h3>
+        <button class="btn btn-ghost icon-btn" id="resetCancelXBtn" aria-label="关闭">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="reset-confirm-text">确定清空本机所有通勤数据并重新配置吗？此操作不可恢复。</p>
+        <p class="reset-warn">清空包括课表数据，请谨慎操作。</p>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" id="resetCancelBtn">取消</button>
+        <button class="btn btn-danger" id="resetConfirmBtn">确认清空</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/config.local.js?v=20261101e"></script>
+  <script src="assets/js/config.js?v=20261101e"></script>
+  <script src="assets/js/common.js?v=20261101e"></script>
+  <script src="assets/js/quota.js?v=20261101e"></script>
+  <script src="assets/js/local-backend.js?v=20261101e"></script>
+  <script src="assets/js/schedule-core.js?v=20261101e"></script>
+  <script src="assets/js/apis.js?v=20261101e"></script>
+  <script src="assets/js/llm.js?v=20261101e"></script>
+  <script src="assets/js/chat.js?v=20261101e"></script>
+  <script src="assets/js/auto-push.js?v=20261101e"></script>
+</body>
+</html>

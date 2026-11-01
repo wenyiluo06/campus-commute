@@ -1,0 +1,20 @@
+# ===== 本地真实密钥（不进 GitHub，但随发布目录上传到线上）=====
+config.local.js
+
+# ===== WorkBuddy 私有工作记忆（勿外传）=====
+.workbuddy/
+
+# ===== 部署标记文件 =====
+.wbapp_*.genie
+
+# ===== 依赖（前端纯静态，无需提交）=====
+node_modules/
+
+# ===== 环境变量 =====
+.env
+.env.*
+
+# ===== 系统 / 编辑器 =====
+.DS_Store
+Thumbs.db
+*.log

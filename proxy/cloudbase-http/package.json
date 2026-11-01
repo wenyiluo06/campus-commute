@@ -1,0 +1,7 @@
+{
+  "name": "zhipu-proxy",
+  "version": "1.0.0",
+  "description": "校园通勤提醒 - 智谱代理 (CloudBase HTTP 云函数 / Web 函数)",
+  "main": "app.js",
+  "dependencies": {}
+}

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>校园通勤提醒 · 首次配置</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="assets/css/style.css?v=20261101e" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🚌</span>
+      <span>校园通勤提醒</span>
+    </div>
+    <div class="actions">
+      <span style="color:var(--text-muted);font-size:13px">首次使用配置</span>
+    </div>
+  </header>
+
+  <main class="setup-page">
+    <div class="intro">
+      <h1>欢迎使用校园通勤提醒 👋</h1>
+      <p>先上传课表、设置默认信息，进入对话页后智能体会把识别结果以对话形式和你核对。</p>
+    </div>
+
+    <!-- 模块一：课表上传（同页） -->
+    <section class="card-block">
+      <h2>① 上传课表</h2>
+      <div class="upload-zone" id="uploadZone">
+        <div class="up-icon">📤</div>
+        <div class="up-main">点击或拖拽课表图片到此处</div>
+        <div class="up-sub">支持 JPG / PNG（AI 自动识别，无需手填）</div>
+        <div class="file-name" id="uploadFileName"></div>
+        <input type="file" id="scheduleFile" accept="image/*" hidden />
+      </div>
+      <div class="tip" id="recognizeTip" style="display:none"></div>
+      <div class="tip">提示：课表将用于解析你的上课时间、地点，生成每日通勤提醒。识别结果进入对话页后可逐行核对修改。</div>
+
+      <!-- 从备份文件导入课表（与设置页“导入/导出备份”相呼应） -->
+      <div class="field backup-block">
+        <label>或从备份文件导入课表</label>
+        <div class="backup-actions">
+          <button class="btn" id="importScheduleBtn" type="button">📥 导入课表（备份）</button>
+          <input type="file" id="importScheduleFile" accept="application/json,.json" hidden />
+        </div>
+        <div class="hint">如果你之前在「设置修改」里导出过备份（含课表 + 设置），可在此一键导入恢复，无需重新上传图片。导入会覆盖当前已填内容。</div>
+      </div>
+    </section>
+
+    <!-- 模块二：默认信息设置 -->
+    <section class="card-block">
+      <h2>② 默认信息设置</h2>
+      <div class="field">
+        <label>学校名称（有校区请一起写上）</label>
+        <input type="text" id="school" placeholder="例如：北京大学，或 北京大学昌平校区" />
+        <div class="hint">课表里的教学楼多是同名简称，带上学校和校区才能定位准确</div>
+      </div>
+      <div class="field">
+        <label>学期第一周的周一日期</label>
+        <input type="date" id="semester" />
+        <div class="hint">按此计算现在是第几周，判断课程这周上不上（单双周 / 起止周次）；默认已填本周周一，可按课表实际改</div>
+      </div>
+      <div class="field">
+        <label>默认出发地（宿舍 / 家）</label>
+        <input type="text" id="depart" placeholder="例如：梅园 3 栋" value="梅园 3 栋 518" />
+      </div>
+        <div class="field">
+          <label>通勤方式</label>
+          <select id="mode">
+            <option selected>步行</option>
+            <option>骑行</option>
+            <option>校内公交</option>
+          </select>
+        </div>
+        <div class="switch-row">
+        <div class="desc">
+          <span>天气提醒</span>
+          <small>出发前推送天气建议</small>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="weather" checked />
+          <span class="slider"></span>
+        </label>
+      </div>
+    </section>
+
+    <div class="setup-actions">
+      <button class="btn btn-primary" id="saveSetupBtn">保存并进入 →</button>
+    </div>
+  </main>
+
+  <script src="assets/js/config.local.js?v=20261101e"></script>
+  <script src="assets/js/config.js?v=20261101e"></script>
+  <script src="assets/js/common.js?v=20261101e"></script>
+  <script src="assets/js/quota.js?v=20261101e"></script>
+  <script src="assets/js/local-backend.js?v=20261101e"></script>
+  <script src="assets/js/schedule-core.js?v=20261101e"></script>
+  <script src="assets/js/llm.js?v=20261101e"></script>
+  <script src="assets/js/setup.js?v=20261101e"></script>
+</body>
+</html>
