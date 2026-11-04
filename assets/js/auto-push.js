@@ -268,6 +268,8 @@ window.AutoPush = (function () {
     node.querySelectorAll("[id]").forEach(function (el) { el.removeAttribute("id"); }); // 多张卡片不能有重复 id
     node._item = item;
     fillCardBasic(node, item);
+    var badge = node.querySelector(".cc-badge");
+    if (badge) badge.textContent = item.isToday ? "本日" : "明日"; // 徽章与卡片事实对应
     var timeEl = node.querySelector(".time");
     if (timeEl) timeEl.textContent = hhmm(new Date());
     return node;
