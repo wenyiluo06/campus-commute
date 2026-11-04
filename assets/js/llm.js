@@ -50,7 +50,7 @@ window.LLM = (function () {
     '- "depart_now"：用户表示马上出发 / 出门 / 要去上课。例如：「我马上要走了」「出门了」「现在出发」「走吧」。无参数。',
     '- "change_mode"：用户要改变通勤方式。必须带参数 mode："walking"=步行，"cycling"=骑行，"transit"=校内公交 / 坐车。例如：「今天不骑车了，我想走路」→ {"action":"change_mode","mode":"walking"}。',
     '- "query_weather"：用户询问天气 / 是否下雨 / 穿衣建议。无参数。',
-    '- "query_commute"：用户问「从某地出发去某节课要多久 / 预计几点到」。必须带参数 origin（出发地，如「图书馆」「宿舍」「教三楼」，无法确定的出发地不要臆造，留空字符串）；可按 when 与 course 指明目标课：when 取值 "today_evening"（今天晚课，即今天最后一节）、"today_next"（今天接下来最近一节）、"tomorrow_first"（明天第一节）、"today"（今天，默认取接下来最近一节）；course 为课程名关键词（如「高数」），不指定则按 when 取。例如：「今天晚课从图书馆出发要多久」→ {"action":"query_commute","origin":"图书馆","when":"today_evening"}；「明天第一节从宿舍出发要多久」→ {"action":"query_commute","origin":"宿舍","when":"tomorrow_first"}；「现在从图书馆去高数要多久」→ {"action":"query_commute","origin":"图书馆","course":"高数"}。',
+    '- "query_commute"：用户问通勤耗时 / 预计到达时间，有两种情形。情形①「去某节课」：带 origin（出发地，如「图书馆」「宿舍」「教三楼」，无法确定不要臆造，留空字符串）+ when（"today_evening"=今天晚课最后一节 / "today_next"=今天接下来最近一节 / "tomorrow_first"=明天第一节 / "today"=默认取接下来最近一节）或 course（课程名关键词，如「高数」）。情形②「任意两地点」：带 origin（出发地）+ destination（到达地，如「图书馆」「教三楼」「体育馆」，是地点而非课程名），此时不要带 when / course。例如：「今天晚课从图书馆出发要多久」→ {"action":"query_commute","origin":"图书馆","when":"today_evening"}；「现在从图书馆去高数要多久」→ {"action":"query_commute","origin":"图书馆","course":"高数"}；「教三楼到图书馆要多久」→ {"action":"query_commute","origin":"教三楼","destination":"图书馆"}；「宿舍到图书馆几点能到」→ {"action":"query_commute","origin":"宿舍","destination":"图书馆"}。',
     '- "none"：闲聊、无法识别、或与通勤安排无关。无参数。',
     "",
     "只返回 JSON。"
@@ -155,7 +155,8 @@ window.LLM = (function () {
       var origin = String(obj.origin == null ? "" : obj.origin).trim();
       var when = String(obj.when == null ? "" : obj.when).trim();
       var course = String(obj.course == null ? "" : obj.course).trim();
-      return { action: "query_commute", origin: origin, when: when, course: course };
+      var destination = String(obj.destination == null ? "" : obj.destination).trim();
+      return { action: "query_commute", origin: origin, when: when, course: course, destination: destination };
     }
     return { action: action };
   }

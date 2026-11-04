@@ -283,16 +283,41 @@ function resolveCommuteTarget(spec) {
   return { row: (upcoming.length ? upcoming[0] : tRows[tRows.length - 1]), isToday: true };
 }
 
-// 计算并回复「从 origin 出发去某节课」的耗时 + 预计到达
+// 计算并回复通勤耗时 + 预计到达。两种情形：
+// ① 显式到达地 destination（如「教三楼到图书馆」）→ 直接算两地（不依赖课表）；
+// ② 去某节课（按 when / course 取目标课）→ 用教室作为到达地。
 async function replyCommute(spec) {
-  const target = resolveCommuteTarget(spec || {});
-  if (!target || !target.row) {
-    appendAgentText("没找到对应的课～可以试着说「今天晚课从图书馆出发要多久」或「明天第一节从宿舍出发要多久」这样的说法。");
-    return;
-  }
-  const origin = ((spec && spec.origin) || "").trim() || commuteMeta.origin;
+  spec = spec || {};
+  const origin = (spec.origin || "").trim() || commuteMeta.origin;
   if (!origin) {
     appendAgentText("先告诉我从哪儿出发（比如「从图书馆出发」），并在设置里填好默认出发地，我才能算路线～");
+    return;
+  }
+  const mode = commuteMeta.mode || "步行";
+
+  // 情形①：显式到达地（两地都是地点，不指课程）→ 直接算两地耗时
+  const destination = (spec.destination || "").trim();
+  if (destination) {
+    try {
+      const detail = await window.CommuteAPI.getCommuteDetail(origin, destination, mode);
+      const travelMin = detail.minutes;
+      const now = new Date();
+      const arrival = new Date(now.getTime() + travelMin * 60000);
+      const head = "从「" + origin + "」到「" + destination + "」，" +
+        (detail.modeLabel || "") + "约 " + travelMin + " 分钟（" + (detail.distanceText || "") + "）。";
+      const tail = "现在出发预计 " + _hhmm(arrival) + " 到达。";
+      appendAgentText(head + tail);
+    } catch (e) {
+      if (e && e.quotaExceeded) { appendAgentText("⚠️ " + ((e && e.message) || "今日免费额度已用完")); return; }
+      appendAgentText("路线算不出来（" + ((e && e.message) || "网络异常") + "），换个说法或稍后再试～");
+    }
+    return;
+  }
+
+  // 情形②：去某节课（按 when / course 取目标课的教室作为到达地）
+  const target = resolveCommuteTarget(spec);
+  if (!target || !target.row) {
+    appendAgentText("没找到对应的课～可以试着说「今天晚课从图书馆出发要多久」或「明天第一节从宿舍出发要多久」这样的说法。");
     return;
   }
   const room = (target.row.location || "").trim();
@@ -300,7 +325,6 @@ async function replyCommute(spec) {
     appendAgentText("《" + (target.row.course_name || "这节课") + "》的教室位置还没填，我算不了路线～");
     return;
   }
-  const mode = commuteMeta.mode || "步行";
   const name = target.row.course_name || "这节课";
   try {
     const detail = await window.CommuteAPI.getCommuteDetail(origin, room, mode);
@@ -327,20 +351,42 @@ async function replyCommute(spec) {
   }
 }
 
-// 本地兜底：识别「从 X 出发去某节课要多久 / 几点到」这类问法（无大模型也可用）
+// 本地兜底：识别「从 X 出发去某节课要多久」「A 到 B 要多久 / 几点到」这类问法（无大模型也可用）
+// 返回 { origin, destination, when, course }：destination 存在（两地都是地点）→ 直接算两地；
+// 否则按 when / course 解析目标课。优先级：课程关键词（《X》或「X 课」）→ 走课程分支。
 window.isCommuteQuery = function (text) {
-  if (!/(要多久|多久|几点到|几点能到|到达时间|多少时间|所需时间|要多少时间|怎么到|怎么去)/.test(text)) return null;
-  const m = text.match(/从\s*(.+?)\s*(?:出发|到|去)/);
-  const origin = m ? m[1].trim() : "";
-  let when = "today_next", course = "";
-  if (/晚课|晚上|今晚|夜里|后两节|后半/.test(text)) when = "today_evening";
-  else if (/明天|次日/.test(text)) when = "tomorrow_first";
-  else if (/下节|接下来|下一节|最近|这节|本节课/.test(text)) when = "today_next";
-  else when = "today_next";
-  // 课程名关键词：捕获「《X》」或「去/上 X 课」里的名词
-  const c = text.match(/《([^》]+)》/) || text.match(/(?:去|上|到)\s*([\u4e00-\u9fa5A-Za-z0-9]{2,8})\s*课/);
-  if (c) course = c[1].trim();
-  return { origin: origin, when: when, course: course };
+  if (!/(要多久|多久|几点到|几点能到|到达时间|多少时间|所需时间|要多少时间|怎么到|怎么去|怎么走)/.test(text)) return null;
+
+  // 课程关键词：《X》或「去/上/到 X 课」→ 走「去某节课」分支（不把 X 当到达地）
+  const courseM = text.match(/《([^》]+)》/) || text.match(/(?:去|上|到)\s*([\u4e00-\u9fa5A-Za-z0-9]{2,8})\s*课/);
+  const course = courseM ? courseM[1].trim() : "";
+
+  // 出发地：优先「从 X 出发/到/去」；无「从」时取「A 到/去 B」里的 A（A 不含标点、长度 1~12）
+  let origin = "";
+  const fromM = text.match(/从\s*([^\s，。,、]{1,12}?)\s*(?:出发|到|去)/);
+  if (fromM) origin = fromM[1].trim();
+  if (!origin) {
+    const leadM = text.match(/^\s*([^\s，。,、到去]{1,12}?)\s*(?:到|去)/);
+    if (leadM) origin = leadM[1].trim();
+  }
+
+  // 到达地：抓「（从 X）到/去 Y」（Y 直到触发词或结尾）；有明确课程关键词时不取（那是去某节课）
+  let destination = "";
+  if (!course) {
+    const toM = text.match(/(?:到|去)\s*([^\s，。,、要几点怎么]{1,12}?)\s*(?:要多久|多久|几点到|几点能到|到达|怎么走|怎么到|$)/);
+    if (toM) destination = toM[1].trim();
+  }
+
+  // when 只在「去某节课」分支有意义
+  let when = "today_next";
+  if (!destination && !course) {
+    if (/晚课|晚上|今晚|夜里|后两节|后半/.test(text)) when = "today_evening";
+    else if (/明天|次日/.test(text)) when = "tomorrow_first";
+    else when = "today_next";
+  }
+
+  if (!origin && !destination && !course) return null;
+  return { origin: origin, destination: destination, when: when, course: course };
 };
 
 // 用户输入统一入口：LLM 优先，本地兜底
@@ -376,7 +422,7 @@ async function dispatchUserText(text) {
       }
       if (r && r.action === "query_commute") {
         removeThinking(think);
-        await replyCommute({ origin: r.origin, when: r.when, course: r.course });
+        await replyCommute({ origin: r.origin, when: r.when, course: r.course, destination: r.destination });
         return;
       }
       // action=none：LLM 认为与通勤无关 → 移除思考气泡，继续走本地链路

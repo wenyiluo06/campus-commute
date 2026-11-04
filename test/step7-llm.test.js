@@ -340,6 +340,15 @@ await test("normalize：query_commute 透传 origin/when/course", () => {
   eq(r.course, "高数", "course");
 });
 
+await test("normalize：query_commute 透传 destination（A 到 B 任意两地点）", () => {
+  const { sandbox } = buildLlmEnv({ key: "k" });
+  const r = sandbox.LLM.normalize({ action: "query_commute", origin: "教三楼", destination: "图书馆" });
+  eq(r.action, "query_commute", "action");
+  eq(r.origin, "教三楼", "origin");
+  eq(r.destination, "图书馆", "destination");
+  ok(!r.when && !r.course, "destination 场景不带 when/course");
+});
+
 await test("System Prompt 覆盖全部 action 与 mode 定义", () => {
   const { sandbox } = buildLlmEnv({ key: "k" });
   const p = sandbox.LLM.SYSTEM_PROMPT;
@@ -516,6 +525,29 @@ await test("MODE_LABEL / MODE_CODE 双向映射一致（与 #set-mode 选项对�
   ["walking", "cycling", "transit"].forEach((code) => {
     ok(sandbox.MODE_CODE[sandbox.MODE_LABEL[code]] === code, code + " ↔ " + sandbox.MODE_LABEL[code]);
   });
+});
+
+await test("isCommuteQuery：A 到 B 任意两地点 → 识别 destination", () => {
+  const { sandbox } = buildChatEnv({ key: "" });
+  const q1 = sandbox.isCommuteQuery("教三楼到图书馆要多久");
+  ok(q1 && q1.origin === "教三楼" && q1.destination === "图书馆", "教三楼到图书馆 → origin/destination");
+  ok(q1 && !q1.course, "无课程关键词");
+  const q2 = sandbox.isCommuteQuery("宿舍到图书馆几点能到");
+  ok(q2 && q2.origin === "宿舍" && q2.destination === "图书馆", "宿舍到图书馆几点能到");
+  const q3 = sandbox.isCommuteQuery("从教三楼到图书馆要多久");
+  ok(q3 && q3.origin === "教三楼" && q3.destination === "图书馆", "从…到… 也识别");
+});
+
+await test("isCommuteQuery：去某节课（含课程关键词）走 course 分支，不误判 destination", () => {
+  const { sandbox } = buildChatEnv({ key: "" });
+  const q = sandbox.isCommuteQuery("从图书馆去高数课要多久");
+  ok(q && q.origin === "图书馆" && q.course === "高数" && !q.destination, "《/课 关键词 → course，无 destination");
+});
+
+await test("isCommuteQuery：无触发词 / 无关句 → null", () => {
+  const { sandbox } = buildChatEnv({ key: "" });
+  ok(sandbox.isCommuteQuery("今天天气怎么样") === null, "天气无关 → null");
+  ok(sandbox.isCommuteQuery("帮我改第 2 节时间") === null, "课表修改 → null");
 });
 
 /* ---------------- 汇总 ---------------- */
