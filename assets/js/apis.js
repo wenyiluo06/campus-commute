@@ -428,7 +428,8 @@ window.CommuteAPI = (function () {
     var raining = !!rainHour;
     var now = hourly[0] || {};
     // 当日实时气温（来自逐时数据的当前小时温度；和风新老版本字段统一为 .temp）
-    var tempNow = (now && now.temp != null && !isNaN(Number(now.temp))) ? Number(now.temp) : null;
+    // 取整去掉小数（如 22.5°C → 23°C），卡片与对话回复共用该文案
+    var tempNow = (now && now.temp != null && !isNaN(Number(now.temp))) ? Math.round(Number(now.temp)) : null;
     var tempStr = tempNow != null ? "，当前 " + tempNow + "°C" : "";
     var text;
     if (raining) {
