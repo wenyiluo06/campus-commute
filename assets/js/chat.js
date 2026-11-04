@@ -603,12 +603,17 @@ let settingsSnapshot = null;
 function readSettingsForm() {
   const v = (id) => { const el = document.getElementById(id); return el ? el.value : ""; };
   const c = (id) => { const el = document.getElementById(id); return !!(el && el.checked); };
+  const radio = (name) => {
+    const el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : "";
+  };
   return {
     school: v("set-school").trim(),
     semester_start: normDateStr(v("set-semester")),
     default_departure: v("set-depart").trim(),
     commute_mode: v("set-mode"),
     weather_on: c("set-weather"),
+    time_scheme: radio("set-timeScheme") || "winter",
   };
 }
 
@@ -630,6 +635,9 @@ function fillSettingsForm(s) {
   };
   selectByText(m, s.commute_mode);
   if (w) w.checked = !!s.weather_on;
+  const scheme = (s.time_scheme === "summer") ? "summer" : "winter";
+  const schemeEl = document.querySelector('input[name="set-timeScheme"][value="' + scheme + '"]');
+  if (schemeEl) schemeEl.checked = true;
 }
 
 function snapshotFromSettings(s) {
@@ -640,6 +648,7 @@ function snapshotFromSettings(s) {
     default_departure: s.default_departure || "",
     commute_mode: s.commute_mode || "",
     weather_on: !!s.weather_on,
+    time_scheme: (s.time_scheme === "summer") ? "summer" : "winter",
   };
 }
 
@@ -722,6 +731,8 @@ function bindSettingsPanel() {
         commuteMeta.origin = form.default_departure;
         commuteMeta.mode = form.commute_mode;
         commuteMeta.semester = form.semester_start;
+        commuteMeta.timeScheme = form.time_scheme;
+        if (window.ScheduleCore) window.ScheduleCore.setTimeScheme(form.time_scheme);
         syncSchoolContext();
         syncSemesterContext();
         syncCommuteCardFromSchedule({ recompute: true });

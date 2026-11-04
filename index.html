@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>校园通勤提醒 · 智能助手</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="assets/css/style.css?v=20261104o" />
+  <link rel="stylesheet" href="assets/css/style.css?v=20261104p" />
 </head>
 <body class="app-shell">
 
@@ -136,6 +136,14 @@
             <span class="slider"></span>
           </label>
         </div>
+        <div class="field">
+          <label>课表上的时间按哪个令时（默认冬令时）</label>
+          <div style="display:flex;gap:18px;margin-top:6px;flex-wrap:wrap">
+            <label style="font-weight:normal"><input type="radio" name="set-timeScheme" value="winter" checked /> 冬令时（课表原样）</label>
+            <label style="font-weight:normal"><input type="radio" name="set-timeScheme" value="summer" /> 夏令时（下午 / 晚课后移 30 分）</label>
+          </div>
+          <small>多数学校课表按冬令时印刷；切到夏令时后，仅课程提醒里的下午与晚课时间后移，课表编辑页不变。</small>
+        </div>
         <!-- 数据备份（本地） -->
         <div class="field backup-block">
           <label>数据备份（本地）</label>
@@ -185,15 +193,15 @@
     </div>
   </div>
 
-  <script src="assets/js/config.local.js?v=20261104o"></script>
-  <script src="assets/js/config.js?v=20261104o"></script>
-  <script src="assets/js/common.js?v=20261104o"></script>
-  <script src="assets/js/quota.js?v=20261104o"></script>
-  <script src="assets/js/local-backend.js?v=20261104o"></script>
-  <script src="assets/js/schedule-core.js?v=20261104o"></script>
-  <script src="assets/js/apis.js?v=20261104o"></script>
-  <script src="assets/js/llm.js?v=20261104o"></script>
-  <script src="assets/js/chat.js?v=20261104o"></script>
-  <script src="assets/js/auto-push.js?v=20261104o"></script>
+  <script src="assets/js/config.local.js?v=20261104p"></script>
+  <script src="assets/js/config.js?v=20261104p"></script>
+  <script src="assets/js/common.js?v=20261104p"></script>
+  <script src="assets/js/quota.js?v=20261104p"></script>
+  <script src="assets/js/local-backend.js?v=20261104p"></script>
+  <script src="assets/js/schedule-core.js?v=20261104p"></script>
+  <script src="assets/js/apis.js?v=20261104p"></script>
+  <script src="assets/js/llm.js?v=20261104p"></script>
+  <script src="assets/js/chat.js?v=20261104p"></script>
+  <script src="assets/js/auto-push.js?v=20261104p"></script>
 </body>
 </html>
