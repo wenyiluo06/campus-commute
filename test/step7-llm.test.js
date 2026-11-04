@@ -441,7 +441,7 @@ await test("分发：LLM query_weather → 调用天气 API 并回复", async ()
   eq(calls.checkWeather, 1, "查了天气");
   const agent = box.querySelectorAll(".msg.agent");
   ok(agent.length >= 1, "有回复气泡");
-  ok(/未来 6 小时/.test(agent[agent.length - 1].textContent), "回复含天气文案");
+  ok(agent[agent.length - 1].textContent.indexOf("晴 ☀️") > -1, "回复含天气文案");
 });
 
 await test("分发：LLM none → 走本地链路（课表修改命中）", async () => {
