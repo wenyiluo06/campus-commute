@@ -210,7 +210,7 @@ window.AutoPush = (function () {
 
   /* ---------------- 课程筛选：当天的后续课程（+ 晚间次日第一节课） ---------------- */
   function keyOf(row, isToday) {
-    return (isToday ? "today" : "tomorrow") + "|" + row.idx + "|" + (row.course_name || "") + "|" + (row.start_time || "");
+    return (isToday ? "today" : "tomorrow") + "|" + row.idx + "|" + (row.course_name || "") + "|" + (window.ScheduleCore.effectiveStart(row));
   }
 
   function computeUpcoming(now) {
@@ -220,11 +220,11 @@ window.AutoPush = (function () {
     // 白天：当天后续课程（开始时间晚于当前时刻）
     var todayLeft = rows
       .filter(function (r) { return matchesDay(r, now) && weekMatches(r.weeks, now, r); })
-      .filter(function (r) { return minOf(hm(r.start_time)) > nowMin(now); })
-      .sort(function (a, b) { return minOf(hm(a.start_time)) - minOf(hm(b.start_time)); });
+      .filter(function (r) { return minOf(hm(window.ScheduleCore.effectiveStart(r))) > nowMin(now); })
+      .sort(function (a, b) { return minOf(hm(window.ScheduleCore.effectiveStart(a))) - minOf(hm(window.ScheduleCore.effectiveStart(b))); });
 
     var list = todayLeft.map(function (r) {
-      return { row: r, isToday: true, startDT: atTime(now, hm(r.start_time)), key: keyOf(r, true) };
+      return { row: r, isToday: true, startDT: atTime(now, hm(window.ScheduleCore.effectiveStart(r))), key: keyOf(r, true) };
     });
 
     // 晚上（18:00 起）：追加次日第一节课（周日晚 → 下周一，跨周自动换算周次）
@@ -232,10 +232,10 @@ window.AutoPush = (function () {
       var tm = addDays(now, 1);
       var tmRows = rows
         .filter(function (r) { return matchesDay(r, tm) && weekMatches(r.weeks, tm, r); })
-        .sort(function (a, b) { return minOf(hm(a.start_time)) - minOf(hm(b.start_time)); });
+        .sort(function (a, b) { return minOf(hm(window.ScheduleCore.effectiveStart(a))) - minOf(hm(window.ScheduleCore.effectiveStart(b))); });
       if (tmRows.length) {
         var r0 = tmRows[0];
-        list.push({ row: r0, isToday: false, startDT: atTime(tm, hm(r0.start_time)), key: keyOf(r0, false) });
+        list.push({ row: r0, isToday: false, startDT: atTime(tm, hm(window.ScheduleCore.effectiveStart(r0))), key: keyOf(r0, false) });
       }
     }
     return list;
@@ -261,7 +261,7 @@ window.AutoPush = (function () {
 
   function fillCardBasic(node, item) {
     setRow(node, "课程名", item.row.course_name || "—");
-    setRow(node, "开始时间", item.row.start_time + (item.isToday ? "" : "（明天）"));
+    setRow(node, "开始时间", window.ScheduleCore.effectiveStart(item.row) + (item.isToday ? "" : "（明天）"));
     setRow(node, "教室位置", item.row.location || "待定");
   }
 
@@ -386,7 +386,7 @@ window.AutoPush = (function () {
       var t = tomorrows[0];
       var wTm = semesterWeek(addDays(now, 1));
       var cross = (wTm != null && wTm !== w) ? "（进入第 " + wTm + " 周）" : "";
-      parts.push("明天第一节课是《" + (t.row.course_name || "") + "》（" + t.row.start_time + "）" + cross);
+      parts.push("明天第一节课是《" + (t.row.course_name || "") + "》（" + window.ScheduleCore.effectiveStart(t.row) + "）" + cross);
     }
     return greet(now) + "！" + parts.join("，") + "，通勤安排帮你列好了 👇";
   }
@@ -480,7 +480,7 @@ window.AutoPush = (function () {
     } else {
       // 明天的课：给出建议出发时间（按路上耗时算，到达上课时间即可，不额外预留提前量）
       var leaveBy = new Date(item.startDT.getTime() - travelMin * 60000);
-      msg = "《" + name + "》明天 " + item.row.start_time + " 开始，路上约 " + travelMin + " 分钟，" +
+      msg = "《" + name + "》明天 " + window.ScheduleCore.effectiveStart(item.row) + " 开始，路上约 " + travelMin + " 分钟，" +
             "建议明天 " + hhmm(leaveBy) + " 出发。";
     }
     appendAgentText(msg);

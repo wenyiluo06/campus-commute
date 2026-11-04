@@ -49,6 +49,41 @@ window.ScheduleCore = (function () {
     return s;
   }
 
+  /* ---------------- 令时偏移（冬 / 夏令时） ----------------
+     课程提醒按「令时」呈现，但课表原始数据始终不变（编辑 / 核对页用原始时间）。
+     - timeScheme: "winter"（默认，课表原样）/ "summer"（夏令时）
+     - 夏令时规则：下午 + 晚课（开始时间 >= 12:00）起止时间各后移 30 分钟，上午课不动。
+     仅 auto-push.js / chat.js 的「展示与计算」调用 effectiveStart/End；
+     buildTrs / renderVerifyCard / parseEdit 等编辑场景不调用，保持课表页时间不变。 */
+  var timeScheme = "winter";
+  function setTimeScheme(s) { timeScheme = (s === "summer") ? "summer" : "winter"; }
+  function hmToMin(v) {
+    var m = String(v == null ? "" : v).match(/^(\d{1,2}):(\d{2})$/);
+    return m ? (+m[1]) * 60 + (+m[2]) : null;
+  }
+  function shiftHM(v, deltaMin) {
+    var t = hmToMin(v);
+    if (t == null) return v;
+    var total = (((t + deltaMin) % 1440) + 1440) % 1440;
+    return pad2(Math.floor(total / 60)) + ":" + pad2(total % 60);
+  }
+  var SUMMER_SHIFT = 30;          // 夏令时偏移量（分钟）
+  var AFTERNOON_FROM = 12 * 60;   // 12:00 起算下午 / 晚课
+  function isAfternoonOrEvening(row) {
+    var s = hmToMin(row && row.start_time);
+    return s != null && s >= AFTERNOON_FROM;
+  }
+  function effectiveStart(row) {
+    if (!row) return "";
+    if (timeScheme !== "summer" || !isAfternoonOrEvening(row)) return row.start_time || "";
+    return shiftHM(row.start_time, SUMMER_SHIFT);
+  }
+  function effectiveEnd(row) {
+    if (!row) return "";
+    if (timeScheme !== "summer" || !isAfternoonOrEvening(row)) return row.end_time || "";
+    return shiftHM(row.end_time, SUMMER_SHIFT);
+  }
+
   /* ---------------- 周次工具（第六步：单双周 / 起止周次） ----------------
      weeks 文本（识别原始结果）："1-16" / "单周" / "双周" / "1-8,10-16" / "3" / "第1-16周"
      结构化字段（入库列）：start_week 起始周次 / end_week 结束周次 /
@@ -420,6 +455,9 @@ window.ScheduleCore = (function () {
     parseWeeks: parseWeeks,
     formatWeeks: formatWeeks,
     normWeekType: normWeekType,
-    syncWeekStruct: syncWeekStruct
+    syncWeekStruct: syncWeekStruct,
+    setTimeScheme: setTimeScheme,
+    effectiveStart: effectiveStart,
+    effectiveEnd: effectiveEnd
   };
 })();

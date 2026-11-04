@@ -9,6 +9,7 @@ const vm = require("vm");
 const ROOT = path.resolve(__dirname, "..");
 const CHAT_SRC = fs.readFileSync(path.join(ROOT, "assets/js/chat.js"), "utf8");
 const PUSH_SRC = fs.readFileSync(path.join(ROOT, "assets/js/auto-push.js"), "utf8");
+const SC_SRC = fs.readFileSync(path.join(ROOT, "assets/js/schedule-core.js"), "utf8");
 
 const REAL_DATE = Date;
 let NOW = new REAL_DATE(2026, 9, 21, 9, 0).getTime(); // 2026-10-21 周三 09:00
@@ -172,6 +173,8 @@ function buildEnv(opts) {
   };
   sandbox.window = sandbox;
   vm.createContext(sandbox);
+  vm.runInContext(SC_SRC, sandbox);              // 注入真实 ScheduleCore（含 effectiveStart/End/setTimeScheme）
+  sandbox.ScheduleCore.getRows = () => rows;     // 用测试 rows 覆盖，保持推送测试可控
   vm.runInContext(CHAT_SRC, sandbox);
   vm.runInContext(PUSH_SRC, sandbox);
   sandbox.appendAgentText = (t) => bubbles.push(t); // 捕获气泡文本
@@ -544,6 +547,27 @@ await test("state 落库：推送记录写入 localStorage", async () => {
   eq(st.day, "2026-10-21", "日期桶");
   eq(Object.keys(st.shown).length, 4, "记录 4 门课");
   ok(Object.keys(st.shown)[0].indexOf("today|") === 0, "key 带 today 前缀");
+});
+
+console.log("\n◆ 令时偏移（冬 / 夏令时）");
+
+await test("ScheduleCore.effectiveStart：冬令时原样；夏令时下午/晚课+30，上午不动", () => {
+  const env = buildEnv({ rows: SAMPLE });
+  const SC = env.sandbox.ScheduleCore;
+  const mk = (start, end) => ({ start_time: start, end_time: end });
+  SC.setTimeScheme("winter");
+  eq(SC.effectiveStart(mk("08:00", "09:40")), "08:00", "冬令时上午原样");
+  eq(SC.effectiveStart(mk("14:00", "15:40")), "14:00", "冬令时下午原样");
+  eq(SC.effectiveStart(mk("19:00", "20:40")), "19:00", "冬令时晚课原样");
+  SC.setTimeScheme("summer");
+  eq(SC.effectiveStart(mk("08:00", "09:40")), "08:00", "夏令时上午不动");
+  eq(SC.effectiveStart(mk("14:00", "15:40")), "14:30", "夏令时下午+30");
+  eq(SC.effectiveStart(mk("12:00", "13:40")), "12:30", "夏令时12:00临界也+30");
+  eq(SC.effectiveStart(mk("19:00", "20:40")), "19:30", "夏令时晚课+30");
+  eq(SC.effectiveEnd(mk("14:00", "15:40")), "16:10", "夏令时结束时间+30");
+  eq(SC.effectiveEnd(mk("08:00", "09:40")), "09:40", "夏令时上午结束不动");
+  eq(SC.effectiveStart(mk("", "")), "", "空时间原样");
+  SC.setTimeScheme("winter");
 });
 
 console.log("\n=========================================");

@@ -14,7 +14,7 @@
 
 // 实时通勤计算的参数来源（默认出发地 / 通勤方式 / 学校（含校区）/ 学期起点，
 // 来自用户设置；未配置时回退读设置表单的当前值，表单本身有演示默认值）
-const commuteMeta = { origin: "", mode: "步行", school: "", semester: "" };
+const commuteMeta = { origin: "", mode: "步行", school: "", semester: "", timeScheme: "winter" };
 
 // 把学校同步给 API 层（高德地理编码按「学校+教学楼/宿舍」拼名定位；
 // 学校是单个字段，有校区就写在一起，如「北京大学昌平校区」）
@@ -333,7 +333,7 @@ async function replyCommute(spec) {
     const travelMin = detail.minutes;
     const now = new Date();
     const arrival = new Date(now.getTime() + travelMin * 60000);
-    const startMin = _hmToMin(target.row.start_time);
+    const startMin = _hmToMin(window.ScheduleCore.effectiveStart(target.row));
     const nowMin = now.getHours() * 60 + now.getMinutes();
     const diff = isFinite(startMin) ? startMin - (nowMin + travelMin) : NaN;
     const head = "从「" + origin + "」到《" + name + "》教室（" + room + "），" +
@@ -968,6 +968,9 @@ async function initApp(session) {
     commuteMeta.origin = userSettings.default_departure || "";
     commuteMeta.mode = userSettings.commute_mode || "步行";
     commuteMeta.semester = normDateStr(userSettings.semester_start);
+    // 令时：课程提醒按此呈现（冬令时原样 / 夏令时下午晚课后移）；课表数据不变
+    commuteMeta.timeScheme = userSettings.time_scheme === "summer" ? "summer" : "winter";
+    if (window.ScheduleCore) window.ScheduleCore.setTimeScheme(commuteMeta.timeScheme);
   } else {
     // 演示模式（未登录/无云端设置）：读本地记住的学校信息
     try {
@@ -976,6 +979,8 @@ async function initApp(session) {
         commuteMeta.school = ls.school;
       }
     } catch (_) {}
+    commuteMeta.timeScheme = "winter";
+    if (window.ScheduleCore) window.ScheduleCore.setTimeScheme("winter");
   }
   syncSchoolContext();
   if (commuteMeta.semester) syncSemesterContext(); // 云端有学期起点才注入

@@ -21,7 +21,7 @@
   // 需要持久化的设置字段（与 schema.sql / supabase.js 对齐）
   var SETTINGS_COLS = [
     "school", "semester_start", "default_departure", "commute_mode",
-    "weather_on"
+    "weather_on", "time_scheme"
   ];
 
   function readJSON(key, fallback) {
