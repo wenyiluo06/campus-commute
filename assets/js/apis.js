@@ -58,6 +58,13 @@ window.CommuteAPI = (function () {
     return type === "rain" || type === "snow" || type === "ice" || type === "mixed";
   }
 
+  // 非降雨场景的结尾用语：
+  // 阴天随时可能转雨，不说“放心出门”，改用更稳妥的提示；其余天气保持原样。
+  function calmSuffix(condNow) {
+    if (condNow === "阴") return "，阴天可能转雨，出门留意天气变化 ☁️";
+    return "，放心出门 ☀️";
+  }
+
   // ---- 工具 ----
   // 稳定散列：让 Mock 结果对同一输入保持不变（刷新页面结果不变）
   function hash(str) {
@@ -326,7 +333,7 @@ window.CommuteAPI = (function () {
     var temp = 15 + (seed % 12); // 演示用 15~26°C
     var base = raining
       ? "[模拟] 当前" + cond + "，未来 " + hours + " 小时可能有雨，出门记得带伞 🌂"
-      : "[模拟] 当前" + cond + "，未来 " + hours + " 小时无雨，放心出门 ☀️";
+      : "[模拟] 当前" + cond + "，未来 " + hours + " 小时无雨" + calmSuffix(cond);
     return {
       raining: raining,
       text: base + "，当前 " + temp + "°C",
@@ -431,6 +438,7 @@ window.CommuteAPI = (function () {
     // 取整去掉小数（如 22.5°C → 23°C），卡片与对话回复共用该文案
     var tempNow = (now && now.temp != null && !isNaN(Number(now.temp))) ? Math.round(Number(now.temp)) : null;
     var tempStr = tempNow != null ? "，当前 " + tempNow + "°C" : "";
+    var condNow = now.text || "天气平稳";
     var text;
     if (raining) {
       var hh = hourOf(rainHour.fxTime);
@@ -440,7 +448,7 @@ window.CommuteAPI = (function () {
       text = "⚠️ 预计 " + (hh != null ? hh + " 时" : "未来几小时内") + "有" + condText +
              "，出门记得带伞 🌂" + tempStr;
     } else {
-      text = "未来 " + hours + " 小时无雨（" + (now.text || "天气平稳") + "）" + tempStr + "，放心出门 ☀️";
+      text = "未来 " + hours + " 小时无雨（" + condNow + "）" + tempStr + calmSuffix(condNow);
     }
     return { raining: raining, text: text, temp: tempNow, source: "qweather", hours: hourly.length, hourly: hourly };
   }
