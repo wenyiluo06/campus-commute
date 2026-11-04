@@ -550,6 +550,59 @@ await test("isCommuteQuery：无触发词 / 无关句 → null", () => {
   ok(sandbox.isCommuteQuery("帮我改第 2 节时间") === null, "课表修改 → null");
 });
 
+/* ---------------- replyCommute：到达/多余时间门控（用户规则） ----------------
+   规则：自然语言场景下，仅两种情形给「到达时间 + 多余时间」：
+     ① A→B（显式到达地）；② 显式说出发地去「今天」这节课。
+   其余（未说出发地如「明天第一节在哪」、明天的课）只给耗时/到达，绝不跨天算荒谬多余时间。 */
+async function callReplyCommute(env, spec) {
+  const { sandbox, box } = env;
+  box.children = []; // 清空，仅断言本次输出
+  await sandbox.replyCommute(spec);
+  return box.querySelectorAll(".msg.agent").map((e) => e.textContent).join(" | ");
+}
+const COMMUTE_STUB_ROWS = [{ idx: 1, course_name: "高数", start_time: "08:00", location: "教三楼 302", weeks: "1-16" }];
+function stubCommuteEnv(env) {
+  env.sandbox.ScheduleCore = {
+    getRows: () => COMMUTE_STUB_ROWS,
+    effectiveStart: (r) => r.start_time,
+    effectiveEnd: (r) => r.end_time || "",
+  };
+  env.sandbox.AutoPush = { matchesDay: () => true, weekMatches: () => true };
+  env.sandbox.CommuteAPI = { getCommuteDetail: async () => ({ minutes: 12, distanceText: "1.0 公里", modeLabel: "步行" }) };
+  // commuteMeta 是顶层 const（不挂到 sandbox 全局对象），需在 context 内赋值
+  vm.runInContext("commuteMeta.origin='梅园 3 栋 518'; commuteMeta.mode='步行';", env.sandbox);
+  return env;
+}
+
+await test("replyCommute：未指定出发地（如「明天第一节在哪」）→ 只给耗时，不含到达/多余时间", async () => {
+  const env = stubCommuteEnv(buildChatEnv({ key: "" }));
+  const out = await callReplyCommute(env, { when: "tomorrow_first" });
+  ok(/约 12 分钟/.test(out), "给出耗时");
+  ok(!/到达/.test(out), "不含到达时间");
+  ok(!/距上课/.test(out) && !/已晚于/.test(out), "不含多余时间");
+});
+
+await test("replyCommute：A→B 两地 → 给到达时间，但无课程可比对故不给多余时间", async () => {
+  const env = stubCommuteEnv(buildChatEnv({ key: "" }));
+  const out = await callReplyCommute(env, { origin: "图书馆", destination: "教三楼" });
+  ok(/到达/.test(out), "含到达时间");
+  ok(!/距上课/.test(out) && !/已晚于/.test(out), "A→B 无多余时间");
+});
+
+await test("replyCommute：显式出发地去「今天」这节课 → 到达时间 + 多余时间", async () => {
+  const env = stubCommuteEnv(buildChatEnv({ key: "" }));
+  const out = await callReplyCommute(env, { origin: "图书馆", when: "today_next", course: "高数" });
+  ok(/到达/.test(out), "含到达时间");
+  ok(/距上课还有|已晚于/.test(out), "含多余时间（距上课/已晚于）");
+});
+
+await test("replyCommute：显式出发地去「明天」这节课 → 只给到达时间，不跨天算荒谬多余时间", async () => {
+  const env = stubCommuteEnv(buildChatEnv({ key: "" }));
+  const out = await callReplyCommute(env, { origin: "图书馆", when: "tomorrow_first" });
+  ok(/到达/.test(out), "含到达时间");
+  ok(!/距上课/.test(out) && !/已晚于/.test(out), "明天跨天，绝不给多余时间");
+});
+
 /* ---------------- 汇总 ---------------- */
 const pass = results.filter((r) => r.ok).length;
 console.log("\n==========================================");

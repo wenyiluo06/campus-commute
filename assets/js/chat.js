@@ -310,9 +310,16 @@ function resolveCommuteTarget(spec) {
 // 计算并回复通勤耗时 + 预计到达。两种情形：
 // ① 显式到达地 destination（如「教三楼到图书馆」）→ 直接算两地（不依赖课表）；
 // ② 去某节课（按 when / course 取目标课）→ 用教室作为到达地。
+// 关于「到达时间 + 多余时间（距上课还有 / 已晚于）」的输出门控（按用户要求）：
+//   - 仅当【用户显式说了出发地】且【目标课是今天的课】时才给（"从某地出发上最近课程"）；
+//   - A→B（情形①）给到达时间，但无课程可比对，不给出多余时间；
+//   - 未显式说出发地（如「明天第一节在哪」「X 课要多久」）只给耗时，不给到达/多余时间；
+//   - 明天的课（跨天）即便说了出发地也只给到达时间，绝不按当天分钟数相减得出荒谬多余时间。
 async function replyCommute(spec) {
   spec = spec || {};
-  const origin = (spec.origin || "").trim() || commuteMeta.origin;
+  // 区分「用户显式说了出发地」与「用默认出发地兜底」——前者才允许给到达/多余时间
+  const explicitOrigin = !!(spec.origin && String(spec.origin).trim());
+  const origin = explicitOrigin ? String(spec.origin).trim() : (commuteMeta.origin || "");
   if (!origin) {
     appendAgentText("先告诉我从哪儿出发（比如「从图书馆出发」），并在设置里填好默认出发地，我才能算路线～");
     return;
@@ -355,18 +362,26 @@ async function replyCommute(spec) {
     const travelMin = detail.minutes;
     const now = new Date();
     const arrival = new Date(now.getTime() + travelMin * 60000);
-    const startMin = _hmToMin(window.ScheduleCore.effectiveStart(target.row));
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const diff = isFinite(startMin) ? startMin - (nowMin + travelMin) : NaN;
     const head = "从「" + origin + "」到《" + name + "》教室（" + room + "），" +
       (detail.modeLabel || "") + "约 " + travelMin + " 分钟（" + (detail.distanceText || "") + "）。";
-    let tail;
-    if (isFinite(diff) && diff >= 0) {
-      tail = "现在出发预计 " + _hhmm(arrival) + " 到达，距上课还有 " + diff + " 分钟。";
-    } else if (isFinite(diff)) {
-      tail = "现在出发预计 " + _hhmm(arrival) + " 到达，已晚于上课时间 " + Math.abs(diff) + " 分钟，快走！";
-    } else {
+    let tail = "";
+    if (explicitOrigin && target.isToday) {
+      // 仅「从某地出发上今天这节课」才给到达时间 + 多余时间（按真实日期算，避免跨天荒谬值）
+      const sm = _hmToMin(window.ScheduleCore.effectiveStart(target.row));
+      if (isFinite(sm)) {
+        const startDT = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(sm / 60), sm % 60, 0, 0);
+        const diff = Math.round((startDT.getTime() - arrival.getTime()) / 60000);
+        if (diff >= 0) tail = "现在出发预计 " + _hhmm(arrival) + " 到达，距上课还有 " + diff + " 分钟。";
+        else tail = "现在出发预计 " + _hhmm(arrival) + " 到达，已晚于上课时间 " + Math.abs(diff) + " 分钟，快走！";
+      } else {
+        tail = "现在出发预计 " + _hhmm(arrival) + " 到达。";
+      }
+    } else if (explicitOrigin) {
+      // 说了出发地但不是今天的课（如明天的课）：只给到达时间，不给多余时间
       tail = "现在出发预计 " + _hhmm(arrival) + " 到达。";
+    } else {
+      // 未显式说出发地（如「明天第一节在哪」「X 课要多久」）：只给耗时，不给到达/多余时间
+      tail = "";
     }
     appendAgentText(head + tail);
   } catch (e) {
