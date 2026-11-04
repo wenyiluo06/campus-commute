@@ -174,17 +174,19 @@ window.MODE_LABEL = { walking: "步行", cycling: "骑行", transit: "校内公�
 window.MODE_CODE = { "步行": "walking", "骑行": "cycling", "校内公交": "transit" };
 
 // LLM 调用期间的「思考中」临时气泡（复用既有 .msg.agent 样式，不新增 CSS）
-function appendThinking() {
+// msg 可选：自然语言输入传「正在识别文字」，课表图片识别传「正在识别课表」
+function appendThinking(msg) {
   const box = document.getElementById("messageList");
   const scroll = document.getElementById("chatScroll");
   if (!box) return null;
   const t = new Date().toTimeString().slice(0, 5);
+  const label = (msg && msg.trim()) || "正在识别课表（约需 10–30 秒，请保持本页面前台、屏幕常亮）";
   const wrap = document.createElement("div");
   wrap.className = "msg agent";
   wrap.innerHTML = `
     <div class="avatar">🤖</div>
     <div class="bubble">
-      <p>🔍 正在识别课表（约需 10–30 秒，请保持本页面前台、屏幕常亮）…</p>
+      <p>🔍 ${label}…</p>
       <span class="time">${t}</span>
     </div>`;
   box.appendChild(wrap);
@@ -391,7 +393,7 @@ window.isCommuteQuery = function (text) {
 
 // 用户输入统一入口：LLM 优先，本地兜底
 async function dispatchUserText(text) {
-  const think = (window.LLM && window.LLM.isReady()) ? appendThinking() : null;
+  const think = (window.LLM && window.LLM.isReady()) ? appendThinking("正在识别文字（约需 1–3 秒）") : null;
   let llmTried = false; // 配了 Key 并尝试调用
   let llmOk = false;    // LLM 成功返回（含 none）
 
@@ -493,7 +495,7 @@ async function recognizeAndVerify(f, opts) {
     appendAgentText("（未配置智谱大模型代理，暂无法识别图片。请在 config.js 的 ZHIPU_CONFIG.proxyUrl 填入 Cloudflare Worker 地址，并确保 Worker 已配置 ZHIPU_KEY。）");
     return;
   }
-  var think = appendThinking();
+  var think = appendThinking("正在识别课表（约需 10–30 秒，请保持本页面前台、屏幕常亮）");
   var rows;
   try {
     rows = await window.LLM.recognizeSchedule(f);
