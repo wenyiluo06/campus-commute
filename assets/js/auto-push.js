@@ -337,7 +337,7 @@ window.AutoPush = (function () {
     if (isPrimary) {
       if (!weatherCache[wKey]) {
         weatherCache[wKey] = window.CommuteAPI.checkWeather(wLoc, { hours: hours })
-          .then(function (w) { return { text: w.text }; })
+          .then(function (w) { return { text: w.text, temp: w.temp }; })
           .catch(function (e) { delete weatherCache[wKey]; throw e; });
       }
       tasks.push(weatherCache[wKey]);
@@ -349,8 +349,19 @@ window.AutoPush = (function () {
       if (rs[0].status === "fulfilled") setRow(node, "路上耗时", rs[0].value.minutes + " 分钟");
       else setRow(node, "路上耗时", DEMO_TRAVEL);
       if (isPrimary) {
-        if (rs[1] && rs[1].status === "fulfilled" && rs[1].value && rs[1].value.text) setRow(node, "天气提醒", rs[1].value.text);
-        else setRow(node, "天气提醒", DEMO_WEATHER);
+        if (rs[1] && rs[1].status === "fulfilled" && rs[1].value) {
+          var wv = rs[1].value;
+          var wText = wv.text || "";
+          // 卡片开头加一句「气温 XX 度」，并去掉尾部冗余的「当前 XX°C」避免重复
+          if (wv.temp != null && isFinite(wv.temp)) {
+            var cleaned = wText.replace(/，?\s*当前\s*\d+\s*°?\s*C\s*$/i, "");
+            setRow(node, "天气提醒", "气温 " + wv.temp + " 度，" + cleaned);
+          } else {
+            setRow(node, "天气提醒", wText);
+          }
+        } else {
+          setRow(node, "天气提醒", DEMO_WEATHER);
+        }
       }
     });
   }
