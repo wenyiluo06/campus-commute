@@ -58,24 +58,18 @@
       if (el && s[k] != null) el.value = s[k];
     });
     if (s.weather_on != null) { var w = $("weather"); if (w) w.checked = !!s.weather_on; }
-    // 令时：默认冬令时，按存储值回填
-    var scheme = (s.time_scheme === "summer") ? "summer" : "winter";
-    var schemeEl = document.querySelector('input[name="timeScheme"][value="' + scheme + '"]');
-    if (schemeEl) schemeEl.checked = true;
   }
 
   function readSettingsForm() {
     var depart = $("depart"), mode = $("mode"),
         weather = $("weather"),
         school = $("school"), semester = $("semester");
-    var schemeEl = document.querySelector('input[name="timeScheme"]:checked');
     return {
       school: school ? school.value.trim() : "",
       semester_start: semester ? normDateStr(semester.value) : "",
       default_departure: depart ? depart.value.trim() : "",
       commute_mode: mode ? mode.value : "",
-      weather_on: weather ? weather.checked : true,
-      time_scheme: schemeEl ? schemeEl.value : "winter"
+      weather_on: weather ? weather.checked : true
     };
   }
 

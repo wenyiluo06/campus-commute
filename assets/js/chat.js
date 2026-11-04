@@ -109,6 +109,8 @@ function appendScheduleVerify() {
   const card = window.ScheduleCore.renderVerifyCard({
     rows: window.ScheduleCore.getRows(),
     persist: true,
+    timeSchemeBound: window.ScheduleCore.getBoundScheme(),
+    onSchemeChange: saveBoundScheme,
     onConfirm: function () { confirmSchedule(); }
   });
   box.appendChild(card);
@@ -130,6 +132,26 @@ function persistSchedule() {
   if (window.AppData && window.AppData.saveSchedule) {
     window.AppData.saveSchedule(window.ScheduleCore.getRows()).catch((e) => console.error("[schedule] 保存失败", e));
   }
+}
+
+// 课表核对 / 修改里选定「基准令时」（与课表时间绑定）：写设置并刷新提醒。
+// 首次（尚无当前显示令时）顺带把当前显示令时也设为基准，避免无谓偏移。
+async function saveBoundScheme(scheme) {
+  if (!window.ScheduleCore) return;
+  window.ScheduleCore.setBoundScheme(scheme);
+  try {
+    let cur = null;
+    if (window.AppData && window.AppData.loadSettings) {
+      try { cur = await window.AppData.loadSettings(); } catch (e) {}
+    }
+    const merged = Object.assign({}, cur || {}, { time_scheme_bound: scheme });
+    if (!cur || cur.time_scheme == null) {
+      merged.time_scheme = scheme;
+      window.ScheduleCore.setActiveScheme(scheme);
+    }
+    if (window.AppData && window.AppData.saveSettings) await window.AppData.saveSettings(merged);
+  } catch (e) { console.error("[scheme] 保存基准令时失败", e); }
+  syncCommuteCardFromSchedule({ recompute: true });
 }
 
 // 自然语言修改课表（对话输入框）：识别「第 N 节 … 开始/结束 … HH:MM」等
@@ -539,6 +561,8 @@ async function recognizeAndVerify(f, opts) {
   var card = window.ScheduleCore.renderVerifyCard({
     rows: rows,
     persist: true,
+    timeSchemeBound: window.ScheduleCore.getBoundScheme(),
+    onSchemeChange: saveBoundScheme,
     headText: fromSettings ? "📋 新课表核对" : "📋 课表核对",
     descText: "我已识别你上传的课表，请核对每节课的星期、起止时间、教室与周次。表格内可直接改，也可用下方对话框以自然语言告诉我（如「第 2 节教室改成教三楼 302」）。确认无误点「确认保存」。",
     confirmText: "✅ 确认保存",
@@ -732,7 +756,7 @@ function bindSettingsPanel() {
         commuteMeta.mode = form.commute_mode;
         commuteMeta.semester = form.semester_start;
         commuteMeta.timeScheme = form.time_scheme;
-        if (window.ScheduleCore) window.ScheduleCore.setTimeScheme(form.time_scheme);
+        if (window.ScheduleCore) window.ScheduleCore.setActiveScheme(form.time_scheme);
         syncSchoolContext();
         syncSemesterContext();
         syncCommuteCardFromSchedule({ recompute: true });
@@ -807,6 +831,8 @@ function openSchedulePreview() {
   const cardNode = window.ScheduleCore.renderVerifyCard({
     rows: window.ScheduleCore.getRows(),
     persist: true,
+    timeSchemeBound: window.ScheduleCore.getBoundScheme(),
+    onSchemeChange: saveBoundScheme,
     headText: "📋 当前课表（可编辑）",
     descText: "这里显示正在使用的课表。表格内可直接改课程名 / 教室 / 时间 / 周次，也能增删行；改动即时保存。",
     confirmText: "完成"
@@ -979,9 +1005,14 @@ async function initApp(session) {
     commuteMeta.origin = userSettings.default_departure || "";
     commuteMeta.mode = userSettings.commute_mode || "步行";
     commuteMeta.semester = normDateStr(userSettings.semester_start);
-    // 令时：课程提醒按此呈现（冬令时原样 / 夏令时下午晚课后移）；课表数据不变
-    commuteMeta.timeScheme = userSettings.time_scheme === "summer" ? "summer" : "winter";
-    if (window.ScheduleCore) window.ScheduleCore.setTimeScheme(commuteMeta.timeScheme);
+    // 令时：基准（课表印刷令时，绑定课表）+ 当前显示令时（设置里切换）
+    var bound = (userSettings.time_scheme_bound === "summer") ? "summer" : "winter";
+    var active = (userSettings.time_scheme === "summer") ? "summer" : "winter";
+    commuteMeta.timeScheme = active;
+    if (window.ScheduleCore) {
+      window.ScheduleCore.setBoundScheme(bound);
+      window.ScheduleCore.setActiveScheme(active);
+    }
   } else {
     // 演示模式（未登录/无云端设置）：读本地记住的学校信息
     try {
@@ -991,7 +1022,10 @@ async function initApp(session) {
       }
     } catch (_) {}
     commuteMeta.timeScheme = "winter";
-    if (window.ScheduleCore) window.ScheduleCore.setTimeScheme("winter");
+    if (window.ScheduleCore) {
+      window.ScheduleCore.setBoundScheme("winter");
+      window.ScheduleCore.setActiveScheme("winter");
+    }
   }
   syncSchoolContext();
   if (commuteMeta.semester) syncSemesterContext(); // 云端有学期起点才注入

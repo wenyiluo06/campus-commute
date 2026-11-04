@@ -570,6 +570,44 @@ await test("ScheduleCore.effectiveStart：冬令时原样；夏令时下午/晚�
   SC.setTimeScheme("winter");
 });
 
+await test("双令时：基准=夏、当前=冬 → 下午/晚课提前30（偏移-30）", () => {
+  const env = buildEnv({ rows: SAMPLE });
+  const SC = env.sandbox.ScheduleCore;
+  const mk = (start, end) => ({ start_time: start, end_time: end });
+  SC.setBoundScheme("summer");
+  SC.setActiveScheme("winter");
+  eq(SC.effectiveStart(mk("08:00", "09:40")), "08:00", "上午不动");
+  eq(SC.effectiveStart(mk("14:00", "15:40")), "13:30", "夏→冬下午提前30");
+  eq(SC.effectiveStart(mk("19:00", "20:40")), "18:30", "夏→冬晚课提前30");
+  eq(SC.effectiveEnd(mk("14:00", "15:40")), "15:10", "夏→冬结束提前30");
+  SC.setBoundScheme("winter");
+  SC.setActiveScheme("winter");
+});
+
+await test("双令时：基准=夏、当前=夏 → 无偏移（课表即原样）", () => {
+  const env = buildEnv({ rows: SAMPLE });
+  const SC = env.sandbox.ScheduleCore;
+  const mk = (start, end) => ({ start_time: start, end_time: end });
+  SC.setBoundScheme("summer");
+  SC.setActiveScheme("summer");
+  eq(SC.effectiveStart(mk("14:00", "15:40")), "14:00", "同令时无偏移");
+  eq(SC.effectiveEnd(mk("19:00", "20:40")), "20:40", "同令时晚课无偏移");
+  SC.setBoundScheme("winter");
+  SC.setActiveScheme("winter");
+});
+
+await test("双令时：基准=冬、当前=夏 → 下午/晚课推后30（偏移+30）", () => {
+  const env = buildEnv({ rows: SAMPLE });
+  const SC = env.sandbox.ScheduleCore;
+  const mk = (start, end) => ({ start_time: start, end_time: end });
+  SC.setBoundScheme("winter");
+  SC.setActiveScheme("summer");
+  eq(SC.effectiveStart(mk("14:00", "15:40")), "14:30", "冬→夏下午推后30");
+  eq(SC.effectiveStart(mk("19:00", "20:40")), "19:30", "冬→夏晚课推后30");
+  SC.setBoundScheme("winter");
+  SC.setActiveScheme("winter");
+});
+
 console.log("\n=========================================");
 console.log("结果：" + passed + " 通过 / " + failed + " 失败");
 console.log("=========================================\n");

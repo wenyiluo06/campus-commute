@@ -24,6 +24,9 @@ window.ScheduleCore = (function () {
     pendingConfirmed: false // 设置页：新课表是否已核对确认
   };
 
+  // 每张核对卡的唯一序号：用于生成互不冲突的令时单选分组名（同页可能多张核对卡）
+  var verifySeq = 0;
+
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -49,14 +52,24 @@ window.ScheduleCore = (function () {
     return s;
   }
 
-  /* ---------------- 令时偏移（冬 / 夏令时） ----------------
-     课程提醒按「令时」呈现，但课表原始数据始终不变（编辑 / 核对页用原始时间）。
-     - timeScheme: "winter"（默认，课表原样）/ "summer"（夏令时）
-     - 夏令时规则：下午 + 晚课（开始时间 >= 12:00）起止时间各后移 30 分钟，上午课不动。
-     仅 auto-push.js / chat.js 的「展示与计算」调用 effectiveStart/End；
-     buildTrs / renderVerifyCard / parseEdit 等编辑场景不调用，保持课表页时间不变。 */
-  var timeScheme = "winter";
-  function setTimeScheme(s) { timeScheme = (s === "summer") ? "summer" : "winter"; }
+  /* ---------------- 令时（冬 / 夏令时） ----------------
+     两套令时，互相独立：
+       · boundScheme（基准 / 课表印刷令时）：在「课表核对 / 修改」里选择，
+         表示课表上印的时间是按哪个令时排的，与课表时间绑定。
+       · activeScheme（当前显示令时）：在「设置修改」里切换，表示你希望提醒
+         按哪个令时呈现；默认等于基准令时（无偏移）。
+     偏移规则：active ≠ bound 时，仅下午 + 晚课（开始时间 >= 12:00）起止各偏移 ±30 分钟：
+       · active=夏 & bound=冬 → +30（推后）
+       · active=冬 & bound=夏 → -30（提前）
+     课表原始数据始终不变（编辑 / 核对页用原始时间）；偏移只在提醒 / 计算层生效。 */
+  var boundScheme = "winter";     // 课表印刷令时（核对 / 修改里设置）
+  var activeScheme = "winter";    // 当前显示令时（设置里切换）
+  function setBoundScheme(s) { boundScheme = (s === "summer") ? "summer" : "winter"; }
+  function setActiveScheme(s) { activeScheme = (s === "summer") ? "summer" : "winter"; }
+  function getBoundScheme() { return boundScheme; }
+  function getActiveScheme() { return activeScheme; }
+  // 兼容旧调用：setTimeScheme 现在代表「当前显示」令时
+  function setTimeScheme(s) { setActiveScheme(s); }
   function hmToMin(v) {
     var m = String(v == null ? "" : v).match(/^(\d{1,2}):(\d{2})$/);
     return m ? (+m[1]) * 60 + (+m[2]) : null;
@@ -73,15 +86,19 @@ window.ScheduleCore = (function () {
     var s = hmToMin(row && row.start_time);
     return s != null && s >= AFTERNOON_FROM;
   }
+  // 单行偏移量（分钟）：仅下午 + 晚课在 active≠bound 时偏移，方向由两令时差决定
+  function schemeDeltaMinutes(row) {
+    if (activeScheme === boundScheme) return 0;
+    if (!isAfternoonOrEvening(row)) return 0;
+    return (activeScheme === "summer") ? SUMMER_SHIFT : -SUMMER_SHIFT;
+  }
   function effectiveStart(row) {
     if (!row) return "";
-    if (timeScheme !== "summer" || !isAfternoonOrEvening(row)) return row.start_time || "";
-    return shiftHM(row.start_time, SUMMER_SHIFT);
+    return shiftHM(row.start_time, schemeDeltaMinutes(row));
   }
   function effectiveEnd(row) {
     if (!row) return "";
-    if (timeScheme !== "summer" || !isAfternoonOrEvening(row)) return row.end_time || "";
-    return shiftHM(row.end_time, SUMMER_SHIFT);
+    return shiftHM(row.end_time, schemeDeltaMinutes(row));
   }
 
   /* ---------------- 周次工具（第六步：单双周 / 起止周次） ----------------
@@ -332,11 +349,13 @@ window.ScheduleCore = (function () {
     }
   }
   // 渲染核对卡片（详见上方辅助函数说明），返回 DOM 节点
-  // opts: { rows, persist, headText, descText, confirmText, onConfirm(rows, cardNode) }
+  // opts: { rows, persist, headText, descText, confirmText, timeSchemeBound, onConfirm(rows, cardNode), onSchemeChange(scheme) }
   function renderVerifyCard(opts) {
     opts = opts || {};
     var rows = opts.rows || state.rows;
     var persist = !!opts.persist;
+    var bound0 = (opts.timeSchemeBound === "summer") ? "summer" : "winter";
+    var schemeGroup = "vc-scheme-" + (++verifySeq);
 
     var WEEK_TYPE_OPTS = [["all", "每周"], ["odd", "单周"], ["even", "双周"]];
     var DAY_OPTS = [["", "每天"], ["1", "周一"], ["2", "周二"], ["3", "周三"], ["4", "周四"], ["5", "周五"], ["6", "周六"], ["7", "周日"]];
@@ -350,6 +369,14 @@ window.ScheduleCore = (function () {
     card.innerHTML =
         '<div class="vc-head">' + esc(opts.headText || "📋 课表核对") + "</div>" +
         '<p class="vc-desc">' + esc(opts.descText || "我已根据你上传的课表解析出以下课程，请核对每节课的星期、起止时间、教室与周次。表格内可直接点选修改，也可用下方对话框以自然语言告诉我（如「第 2 节教室改成教三楼 302」）。确认无误点「确认保存」。") + "</p>" +
+        // 令时标定：课表印刷令时（与课表时间绑定），先于表格让用户在核对时间前选好
+        '<div class="vc-scheme">' +
+          '<div class="vc-scheme-row"><span class="vc-scheme-label">⏰ 课表时间按哪个令时</span>' +
+            '<label class="vc-scheme-opt"><input type="radio" name="' + schemeGroup + '" value="winter"' + (bound0 === "winter" ? " checked" : "") + ' /> 冬令时（课表原样）</label>' +
+            '<label class="vc-scheme-opt"><input type="radio" name="' + schemeGroup + '" value="summer"' + (bound0 === "summer" ? " checked" : "") + ' /> 夏令时（下午 / 晚课后移 30 分）</label>' +
+          "</div>" +
+          '<div class="vc-scheme-hint">请先对照课表上印的时间选好令时：选错会让提醒里的下午与晚课偏差 30 分钟。切换季节请在「设置修改」里操作，这里只标定课表本身。</div>' +
+        "</div>" +
         '<div class="vc-table-wrap"><table class="verify-table"><thead><tr>' +
           "<th>节</th><th>星期</th><th>课程</th><th>开始</th><th>结束</th><th>教室</th><th>周次</th><th>单双周</th><th>操作</th>" +
         "</tr></thead><tbody>" + trs + "</tbody></table></div>" +
@@ -360,9 +387,25 @@ window.ScheduleCore = (function () {
 
     card._rows = rows; // 卡片绑定的数据集合：改这张表只改这份
 
+    // 令时单选：改动即更新基准令时（与课表绑定），并回调上层持久化 / 重算
+    var schemeWrap = card.querySelector(".vc-scheme");
+    if (schemeWrap) {
+      schemeWrap.addEventListener("change", function (e) {
+        var inp = e.target && e.target.closest ? e.target.closest('input[name="' + schemeGroup + '"]') : null;
+        if (!inp) return;
+        setBoundScheme(inp.value);
+        if (opts.onSchemeChange) opts.onSchemeChange(inp.value);
+      });
+    }
+
     var confirmBtn = card.querySelector(".vc-confirm");
     if (confirmBtn) {
       confirmBtn.addEventListener("click", function () {
+        // 确认时把当前选定的基准令时一并落库（即便未改动也保证写入）
+        var sel = card.querySelector('input[name="' + schemeGroup + '"]:checked');
+        var val = sel ? sel.value : bound0;
+        setBoundScheme(val);
+        if (opts.onSchemeChange) opts.onSchemeChange(val);
         if (opts.onConfirm) opts.onConfirm(rows, wrap);
       });
     }
@@ -457,6 +500,10 @@ window.ScheduleCore = (function () {
     normWeekType: normWeekType,
     syncWeekStruct: syncWeekStruct,
     setTimeScheme: setTimeScheme,
+    setBoundScheme: setBoundScheme,
+    setActiveScheme: setActiveScheme,
+    getBoundScheme: getBoundScheme,
+    getActiveScheme: getActiveScheme,
     effectiveStart: effectiveStart,
     effectiveEnd: effectiveEnd
   };

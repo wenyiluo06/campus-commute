@@ -435,6 +435,18 @@ body.app-shell .chat-page {
 .vc-input:focus { border-color: var(--accent); outline: none; }
 .vc-confirm { width: 100%; justify-content: center; margin-top: 12px; font-size: 15px; }
 
+/* 课表核对 / 修改：令时标定（与课表时间绑定） */
+.vc-scheme {
+  margin: 2px 0 12px; padding: 10px 12px;
+  background: var(--accent-soft); border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.vc-scheme-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.vc-scheme-label { font-weight: 600; font-size: 14px; }
+.vc-scheme-opt { font-weight: normal; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.vc-scheme-opt input { accent-color: var(--accent); }
+.vc-scheme-hint { margin-top: 8px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
 /* 响应式 */
 @media (max-width: 600px) {
   .commute-row .label { flex-basis: 72px; }
