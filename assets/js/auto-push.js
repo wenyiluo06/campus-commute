@@ -304,6 +304,12 @@ window.AutoPush = (function () {
   }
   function currentOrigin() { return formVal("set-depart", "梅园 3 栋 518"); }
   function currentMode() { return formVal("set-mode", "步行"); }
+  // 天气取「大学所在地」：优先用设置里填写的学校，未填则退回出发地（保证仍有天气）
+  function currentSchool() {
+    var s = formVal("set-school", "").trim();
+    if (!s && typeof commuteMeta !== "undefined" && commuteMeta.school) s = commuteMeta.school;
+    return s || currentOrigin();
+  }
 
   // 仅第一条（primary）展示天气 + 现在出发按钮；其余课程卡只给路上耗时
   function computeCard(node, item, isPrimary) {
@@ -318,11 +324,12 @@ window.AutoPush = (function () {
     var seq = (node._seq = (node._seq || 0) + 1); // 丢弃过期响应
     var room = (item.row.location || "").trim();
     var origin = currentOrigin();
+    var school = currentSchool();
     var mode = currentMode();
     var hours = item.isToday ? 6
       : Math.max(6, Math.ceil((item.startDT.getTime() - Date.now()) / 3600000) + 2);
     var tKey = origin + "|" + room + "|" + mode;
-    var wKey = origin + "|" + hours;
+    var wKey = school + "|" + hours;
 
     // 缓存 Promise 本身（而非结果）：多张卡片同时建卡时，同一 key 只发一次请求；
     // 失败时清掉缓存，下次渲染可重试。天气仅第一条卡需要，故只为主卡拉取。
@@ -333,7 +340,7 @@ window.AutoPush = (function () {
     var tasks = [travelCache[tKey]];
     if (isPrimary) {
       if (!weatherCache[wKey]) {
-        weatherCache[wKey] = window.CommuteAPI.checkWeather(origin, { hours: hours })
+        weatherCache[wKey] = window.CommuteAPI.checkWeather(school, { hours: hours })
           .then(function (w) { return { text: w.text }; })
           .catch(function (e) { delete weatherCache[wKey]; throw e; });
       }

@@ -218,14 +218,17 @@ async function applyModeChange(mode) {
   appendAgentText("好，已切换到「" + label + "」，通勤卡片按新方式重新算好了 🚶");
 }
 
-// LLM 判定在问天气 → 用第四步的天气 API 直接回答
+// LLM 判定在问天气 → 用第四步的天气 API 直接回答（取「大学所在地」）
 async function replyWeather() {
   const dep = document.getElementById("set-depart");
   const origin = (commuteMeta.origin || "").trim() || (dep ? dep.value.trim() : "");
-  if (!origin) { appendAgentText("先在设置里填好默认出发地，我才能查那儿的天气～"); return; }
+  const school = (commuteMeta.school || "").trim();
+  const loc = school || origin;
+  if (!loc) { appendAgentText("先在设置里填好学校或默认出发地，我才能查天气～"); return; }
   try {
-    const w = await window.CommuteAPI.checkWeather(origin, { hours: 6 });
-    appendAgentText(origin + " 未来 6 小时：" + ((w && w.text) || "暂无数据"));
+    const w = await window.CommuteAPI.checkWeather(loc, { hours: 6 });
+    const label = school ? (school + "（学校所在地）") : (origin + "（出发地）");
+    appendAgentText(label + " 未来 6 小时：" + ((w && w.text) || "暂无数据"));
   } catch (e) {
     if (e && e.quotaExceeded) { appendAgentText("⚠️ " + ((e && e.message) || "今日免费额度已用完")); return; }
     appendAgentText("天气没查出来（" + ((e && e.message) || "网络异常") + "），出门记得看一眼天空 ☁️");
