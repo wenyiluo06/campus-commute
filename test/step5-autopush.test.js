@@ -367,6 +367,25 @@ await test("周次匹配：1-16 / 单周 / 双周 / 列表 / 无学期起点", a
   eq(env2.sandbox.AutoPush.weekMatches("单周", d(2026, 9, 26)), true, "无学期起点不过滤");
 });
 
+await test("周次匹配(带行/结构化字段)：不连续「3-7,13」正确排除空隙周", async () => {
+  // 复现用户 bug：weeks 文本「3-7,13」经 syncWeekStruct 折叠成 start_week=3/end_week=13，
+  // 结构化字段优先时若只看起止区间，会把第 8~12 周误判为上课 → 误推。
+  const env = buildEnv({ rows: SAMPLE, semesterStart: "2026-09-07" }); // 第1周周一
+  const AP = env.sandbox.AutoPush;
+  const d = (y, m, day) => new REAL_DATE(y, m, day);
+  const row = { weeks: "3-7,13", start_week: 3, end_week: 13, week_type: "all" };
+  eq(AP.weekMatches(row.weeks, d(2026, 8, 21), row), true, "第3周在 3-7");
+  eq(AP.weekMatches(row.weeks, d(2026, 9, 5), row), true, "第5周在 3-7");
+  eq(AP.weekMatches(row.weeks, d(2026, 9, 19), row), true, "第7周在 3-7");
+  eq(AP.weekMatches(row.weeks, d(2026, 9, 26), row), false, "第8周(空隙)不推送");
+  eq(AP.weekMatches(row.weeks, d(2026, 10, 9), row), false, "第10周(空隙)不推送");
+  eq(AP.weekMatches(row.weeks, d(2026, 10, 30), row), true, "第13周在列表");
+  // 仅有结构化字段、文本为空时，回退到起止范围判断（旧行为保持）
+  const row2 = { weeks: "", start_week: 3, end_week: 7, week_type: "all" };
+  eq(AP.weekMatches(row2.weeks, d(2026, 9, 26), row2), false, "纯结构化 3-7：第8周不推送");
+  eq(AP.weekMatches(row2.weeks, d(2026, 9, 5), row2), true, "纯结构化 3-7：第5周推送");
+});
+
 await test("跨周：单周课在周日（第7周）→ 明天周一（第8周）不推", async () => {
   const rows = [{ idx: 1, course_name: "单周高数", start_time: "08:00", end_time: "09:40", location: "教三楼 302", weeks: "单周", day: 1 }];
   const env = buildEnv({ now: new REAL_DATE(2026, 9, 25, 20, 0).getTime(), rows, semesterStart: "2026-09-07" });

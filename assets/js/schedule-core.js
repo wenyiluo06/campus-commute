@@ -86,15 +86,34 @@ window.ScheduleCore = (function () {
     }
     return out;
   }
+  // 从周次文本提取所有数字段（支持「3-7,13」「第1-8,10-16周」），保留不连续结构
+  // 仅当文本含多段（拆开/不连续）时返回「第 3-7,13 周」式标签，单段则交回起止范围展示
+  function weeksRangeLabel(s) {
+    var str = String(s == null ? "" : s).trim();
+    if (!str) return "";
+    var segs = [];
+    var re = /(\d+)\s*[-~至到]\s*(\d+)|(\d+)/g;
+    var m;
+    while ((m = re.exec(str))) {
+      if (m[1]) segs.push(m[1] + "-" + m[2]);
+      else segs.push(m[3]);
+    }
+    if (segs.length <= 1) return ""; // 单段 → 交给起止范围展示（如「第 1-16 周」）
+    return "第 " + segs.join(",") + " 周";
+  }
   // 行的周次展示文案（如「第 2-15 周 · 单周」）；结构化字段优先，缺失时读 weeks 文本
   function formatWeeks(row) {
-    var wk = parseWeeks(row && row.weeks);
+    var raw = String((row && row.weeks) || "").trim();
+    var wk = parseWeeks(raw);
     var s = toInt(row && row.start_week), e = toInt(row && row.end_week);
     if (s == null) s = wk.start;
     if (e == null) e = wk.end;
     var t = normWeekType(row && row.week_type) || wk.type;
     var parts = [];
-    if (s != null && e != null) parts.push(s === e ? "第 " + s + " 周" : "第 " + s + "-" + e + " 周");
+    // 周次区间：文本含不连续段（逗号分隔或多段）时直接展示，避免被压成「3-13」
+    var segText = weeksRangeLabel(raw);
+    if (segText) parts.push(segText);
+    else if (s != null && e != null) parts.push(s === e ? "第 " + s + " 周" : "第 " + s + "-" + e + " 周");
     else if (s != null) parts.push("第 " + s + " 周起");
     else if (e != null) parts.push("至第 " + e + " 周");
     if (t === "odd") parts.push("单周");

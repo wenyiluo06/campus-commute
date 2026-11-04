@@ -161,16 +161,19 @@ window.AutoPush = (function () {
     var sw = row ? parseInt(row.start_week, 10) : NaN;
     var ew = row ? parseInt(row.end_week, 10) : NaN;
     var wt = row ? String(row.week_type || "").trim() : "";
+    // 始终从 weeks 文本解析精确周次列表（处理「3-7,13」这类拆开/不连续周次）：
+    // 即便结构化字段把它压成了连续起止区间，也用文本列表精确排除空隙周，避免误推。
+    var pText = parseWeeks(weeksStr != null ? weeksStr : (row && row.weeks));
+    var textNums = (pText && pText.nums) ? pText.nums : null;
     var hasStruct = isFinite(sw) || isFinite(ew) || (wt && wt !== "all");
     if (!hasStruct) {
-      var p = parseWeeks(weeksStr != null ? weeksStr : (row && row.weeks));
-      return { start: p.start, end: p.end, type: p.type, nums: p.nums, hasInfo: !!(p.nums || p.type !== "all") };
+      return { start: pText.start, end: pText.end, type: pText.type, nums: textNums, hasInfo: !!(textNums || pText.type !== "all") };
     }
     return {
       start: isFinite(sw) ? sw : null,
       end: isFinite(ew) ? ew : null,
       type: (wt === "odd" || wt === "even") ? wt : "all",
-      nums: null, // 结构化字段不表达「1-8,10-16」这类列表，按起止范围判断
+      nums: textNums, // 文本含不连续周次时，用精确列表覆盖起止范围判断
       hasInfo: true
     };
   }
