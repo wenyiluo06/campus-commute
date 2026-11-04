@@ -331,10 +331,19 @@ await test("normalize 边界：数组 / 缺 action → throw；非法 action →
   eq(sandbox.LLM.normalize({ action: "depart_now" }).action, "depart_now", "合法");
 });
 
+await test("normalize：query_commute 透传 origin/when/course", () => {
+  const { sandbox } = buildLlmEnv({ key: "k" });
+  const r = sandbox.LLM.normalize({ action: "query_commute", origin: "图书馆", when: "today_evening", course: "高数" });
+  eq(r.action, "query_commute", "action");
+  eq(r.origin, "图书馆", "origin");
+  eq(r.when, "today_evening", "when");
+  eq(r.course, "高数", "course");
+});
+
 await test("System Prompt 覆盖全部 action 与 mode 定义", () => {
   const { sandbox } = buildLlmEnv({ key: "k" });
   const p = sandbox.LLM.SYSTEM_PROMPT;
-  ["depart_now", "change_mode", "query_weather", "none", "walking", "cycling", "transit", "只输出 JSON"].forEach((k) => {
+  ["depart_now", "change_mode", "query_weather", "query_commute", "none", "walking", "cycling", "transit", "只输出 JSON"].forEach((k) => {
     ok(p.includes(k), "System Prompt 应包含 " + k);
   });
 });
