@@ -6,14 +6,14 @@
 
    说明：
    - 计数为本机 localStorage，按自然日自动重置（date 字段比对当天）。
-   - 默认上限 40 次/天，改 DAILY_LIMIT 即可调整。
+   - 默认上限 80 次/天，改 DAILY_LIMIT 即可调整。
    - guard()：调用前检查——超限抛出带 quotaExceeded 标识的错误（文案可直接展示）；
      通过则 +1。各外部调用点（llm.js / apis.js）在开始发请求前调用它。
    =================================================================== */
 (function () {
   "use strict";
 
-  var DAILY_LIMIT = 40;          // 每人每天外部 API 总调用上限
+  var DAILY_LIMIT = 80;          // 每人每天外部 API 总调用上限
   var KEY = "cb_quota";          // localStorage 键
 
   function todayStr() {
