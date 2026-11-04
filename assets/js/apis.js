@@ -323,11 +323,14 @@ window.CommuteAPI = (function () {
     var seed = hash(loc + "|" + new Date().getHours()); // 同一小时内结果稳定
     var cond = MOCK_WEATHER[seed % MOCK_WEATHER.length];
     var raining = cond.indexOf("雨") > -1;
+    var temp = 15 + (seed % 12); // 演示用 15~26°C
+    var base = raining
+      ? "[模拟] 当前" + cond + "，未来 " + hours + " 小时可能有雨，出门记得带伞 🌂"
+      : "[模拟] 当前" + cond + "，未来 " + hours + " 小时无雨，放心出门 ☀️";
     return {
       raining: raining,
-      text: raining
-        ? "[模拟] 当前" + cond + "，未来 " + hours + " 小时可能有雨，出门记得带伞 🌂"
-        : "[模拟] 当前" + cond + "，未来 " + hours + " 小时无雨，放心出门 ☀️",
+      text: base + "，当前 " + temp + "°C",
+      temp: temp,
       source: "mock",
       hours: hours,
       hourly: []
@@ -424,6 +427,9 @@ window.CommuteAPI = (function () {
 
     var raining = !!rainHour;
     var now = hourly[0] || {};
+    // 当日实时气温（来自逐时数据的当前小时温度；和风新老版本字段统一为 .temp）
+    var tempNow = (now && now.temp != null && !isNaN(Number(now.temp))) ? Number(now.temp) : null;
+    var tempStr = tempNow != null ? "，当前 " + tempNow + "°C" : "";
     var text;
     if (raining) {
       var hh = hourOf(rainHour.fxTime);
@@ -431,11 +437,11 @@ window.CommuteAPI = (function () {
       var cond = String(rainHour.text || "雨");
       var condText = cond.indexOf("雨") > -1 ? cond : "雨（" + cond + "）";
       text = "⚠️ 预计 " + (hh != null ? hh + " 时" : "未来几小时内") + "有" + condText +
-             "，出门记得带伞 🌂";
+             "，出门记得带伞 🌂" + tempStr;
     } else {
-      text = "未来 " + hours + " 小时无雨（" + (now.text || "天气平稳") + "），放心出门 ☀️";
+      text = "未来 " + hours + " 小时无雨（" + (now.text || "天气平稳") + "）" + tempStr + "，放心出门 ☀️";
     }
-    return { raining: raining, text: text, source: "qweather", hours: hourly.length, hourly: hourly };
+    return { raining: raining, text: text, temp: tempNow, source: "qweather", hours: hourly.length, hourly: hourly };
   }
 
   /**
